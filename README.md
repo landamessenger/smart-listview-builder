@@ -1,4 +1,4 @@
-# SmartListView
+# SmartListViewBuilder
 
 ListView Builder which notifies different positions.
 
@@ -7,7 +7,7 @@ Example:
 ```dart
 @override
 Widget build(BuildContext context) {
-  return SmartListView(
+  return SmartListViewBuilder(
     physics: const BouncingScrollPhysics(),
     addAutomaticKeepAlives: true,
     addRepaintBoundaries: true,

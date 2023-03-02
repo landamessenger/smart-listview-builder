@@ -2,7 +2,7 @@ library smartlistview;
 
 import 'package:flutter/material.dart';
 
-class SmartListView extends ListView {
+class SmartListViewBuilder extends ListView {
   final Function()? onStart;
   final Function()? onMedium;
   final Function()? onEnd;
@@ -13,7 +13,7 @@ class SmartListView extends ListView {
   final bool addRepaintBoundaries;
   final bool addSemanticIndexes;
 
-  SmartListView({
+  SmartListViewBuilder({
     Key? key,
     super.scrollDirection,
     super.reverse,
