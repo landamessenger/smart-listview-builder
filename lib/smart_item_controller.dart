@@ -1,11 +1,17 @@
 import 'smart_controlled_listview_builder.dart';
 
 class SmartItemController<A, T> {
-  bool internalLoad = false;
+  bool locked = false;
+
+  bool loading = false;
+
+  bool get canPropagateEvent => locked || loading;
 
   bool loadingNext = true;
 
   bool loadingPrevious = true;
+
+  void Function() onRefresh = () {};
 
   void Function() onLoadingNext = () {};
 
@@ -56,9 +62,18 @@ class SmartItemController<A, T> {
 
     this._items.addAll(items);
 
+    bool wasNext = loadingNext;
+
     loadingNext = false;
     loadingPrevious = false;
-    parent?.refresh(clearPrevious ? _keepOnIndex(listItems, reference) : null);
+    loading = false;
+
+    var index = _keepOnIndex(listItems, reference);
+    if (index == 0) {
+      parent?.lock();
+    }
+
+    parent?.refresh(clearPrevious ? index : null, wasNext);
   }
 
   int? _keepOnIndex(List<T> list, T? item) {

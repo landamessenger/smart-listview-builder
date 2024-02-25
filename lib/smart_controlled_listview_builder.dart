@@ -18,6 +18,8 @@ class SmartControllerListViewBuilder<A, T> extends StatefulWidget {
   final bool addRepaintBoundaries;
   final bool addSemanticIndexes;
   final int? semanticChildCount;
+  final Widget? loadingNextChild;
+  final Widget? loadingPreviousChild;
 
   final ScrollPhysics? physics;
   final SmartItemController<A, T> itemController;
@@ -44,6 +46,8 @@ class SmartControllerListViewBuilder<A, T> extends StatefulWidget {
     this.onStart,
     this.onMedium,
     this.onEnd,
+    this.loadingNextChild,
+    this.loadingPreviousChild,
   }) : super(key: key);
 
   @override
@@ -80,7 +84,7 @@ class SmartControllerListViewBuilderState<A, T>
             child: AnimatedOpacity(
               duration: animationDuration,
               opacity: showNext ? 1 : 0,
-              child: const Center(
+              child: widget.loadingNextChild ?? const Center(
                 child: Text('Loading next items..'),
               ),
             ),
@@ -92,7 +96,7 @@ class SmartControllerListViewBuilderState<A, T>
             child: AnimatedOpacity(
               duration: animationDuration,
               opacity: showPrevious ? 1 : 0,
-              child: const Center(
+              child: widget.loadingPreviousChild ?? const Center(
                 child: Text('Loading previous items..'),
               ),
             ),
@@ -108,8 +112,7 @@ class SmartControllerListViewBuilderState<A, T>
               addRepaintBoundaries: widget.addRepaintBoundaries,
               itemCount: items.length,
               itemBuilder: (BuildContext context, int index) {
-                return widget.itemBuilder(
-                    context, index, items[index]);
+                return widget.itemBuilder(context, index, items[index]);
               },
               addSemanticIndexes: widget.addSemanticIndexes,
               semanticChildCount: widget.semanticChildCount,
@@ -131,8 +134,10 @@ class SmartControllerListViewBuilderState<A, T>
 
               pixel = notification.metrics.pixels;
 
+              if (pixel == 0) {
+                return false;
+              }
 
-              // print(pixel);
               if (notification.metrics.atEdge) {
                 if (notification.metrics.pixels > 0 &&
                     axis == AxisDirection.down) {
@@ -154,9 +159,10 @@ class SmartControllerListViewBuilderState<A, T>
             child: AnimatedOpacity(
               duration: animationDuration,
               opacity: showPrevious ? 1 : 0,
-              child: const Center(
-                child: Text('Loading previous items..'),
-              ),
+              child: widget.loadingPreviousChild ??
+                  const Center(
+                    child: Text('Loading previous items..'),
+                  ),
             ),
           ),
         if (!reverse)
@@ -166,7 +172,7 @@ class SmartControllerListViewBuilderState<A, T>
             child: AnimatedOpacity(
               duration: animationDuration,
               opacity: showNext ? 1 : 0,
-              child: const Center(
+              child: widget.loadingNextChild ?? const Center(
                 child: Text('Loading next items..'),
               ),
             ),
@@ -176,22 +182,21 @@ class SmartControllerListViewBuilderState<A, T>
   }
 
   void onStart() {
-    if (widget.itemController.internalLoad) {
+    if (widget.itemController.canPropagateEvent) {
       return;
     }
 
     widget.onStart?.call();
 
     if (!widget.itemController.loadingPrevious) {
-      widget.itemController.internalLoad = true;
       widget.itemController.loadingPrevious = true;
       widget.itemController.onLoadingPrevious();
-      lock();
+      loading();
     }
   }
 
   void onMedium() {
-    if (widget.itemController.internalLoad) {
+    if (widget.itemController.canPropagateEvent) {
       return;
     }
 
@@ -199,53 +204,56 @@ class SmartControllerListViewBuilderState<A, T>
 
     if (widget.itemController.loadingNext ||
         widget.itemController.loadingPrevious) {
-      widget.itemController.internalLoad = true;
       widget.itemController.loadingNext = false;
       widget.itemController.loadingPrevious = false;
-      lock();
+      refresh();
     }
   }
 
   void onEnd() {
-    if (widget.itemController.internalLoad) {
+    if (widget.itemController.canPropagateEvent) {
       return;
     }
 
     widget.onEnd?.call();
 
     if (!widget.itemController.loadingNext) {
-      widget.itemController.internalLoad = true;
       widget.itemController.loadingNext = true;
       widget.itemController.onLoadingNext();
-      lock();
+      loading();
     }
   }
 
-  void lock() {
-    widget.itemController.internalLoad = true;
-    unlock();
+  void loading() {
+    widget.itemController.loading = true;
     refresh();
+  }
+
+  void lock() {
+    widget.itemController.locked = true;
+    unlock();
   }
 
   void unlock() {
     Future.delayed(lockDuration, () {
-      widget.itemController.internalLoad = false;
+      widget.itemController.locked = false;
       refresh();
     });
   }
 
   bool reversed() => widget.reverse ?? false;
 
-  void refresh([int? index]) {
+  void refresh([int? index, bool? next, bool? previous]) {
     if (index != null) {
       // TODO fix aligned
-      widget.itemScrollController.jumpTo(index: index, alignment: reversed() ? .8 : .2);
-      lock();
+      widget.itemScrollController
+          .jumpTo(index: index, alignment: next ?? false ? .8 : .2);
     }
     Future.delayed(const Duration(milliseconds: 50), () {
       if (mounted) {
         setState(() {});
       }
+      widget.itemController.onRefresh();
     });
   }
 }
